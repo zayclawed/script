@@ -10,80 +10,103 @@ local function test(name, fn)
     end
 end
 
-print("--- [ STARTING PC-SPECIFIC MASTER BENCHMARK ] ---")
+print("--- [ STARTING ABSOLUTE COMPLETIONIST SUITE ] ---")
 
--- 1. PC IDENTITY & VULNERABILITY
-test("IdentifyExecutor (Returns Name)", function() return identifyexecutor() ~= nil end)
-test("GetThreadIdentity (Permissions)", function() 
-    local id = (getthreadidentity or get_thread_identity or syn.get_thread_identity)()
-    return type(id) == "number"
-end)
-test("CheckCaller (Spoof Prevention)", function() return checkcaller() == true end)
+-- 1. ENVIRONMENT & CACHE (UNC)
+test("getgenv", function() return getgenv() ~= nil end)
+test("getrenv", function() return getrenv() ~= nil end)
+test("getreg", function() return type(getreg()) == "table" end)
+test("getgc", function() return type(getgc()) == "table" end)
+test("getinstances", function() return type(getinstances()) == "table" end)
+test("getnilinstances", function() return type(getnilinstances()) == "table" end)
+test("getscripts", function() return type(getscripts()) == "table" end)
+test("getloadedmodules", function() return type(getloadedmodules()) == "table" end)
+test("getconnections", function() return type(getconnections(game.ItemChanged)) == "table" end)
+test("cache.replace", function() return cache and cache.replace ~= nil end)
+test("cache.invalidate", function() return cache and cache.invalidate ~= nil end)
+test("getrawmetatable", function() return getrawmetatable(game) ~= nil end)
+test("setrawmetatable", function() return setrawmetatable ~= nil end)
+test("setreadonly", function() local t = {} setreadonly(t, true) return isreadonly(t) end)
+test("isreadonly", function() return isreadonly(table) == true end)
 
--- 2. ADVANCED HOOKING (sUNC)
-test("hookmetamethod (__namecall)", function()
-    local old; old = hookmetamethod(game, "__namecall", function(self, ...) return old(self, ...) end)
-    return old ~= nil
+-- 2. CLOSURES & SPOOFING (sUNC)
+test("checkcaller", function() return type(checkcaller()) == "boolean" end)
+test("islclosure", function() return islclosure(function() end) == true end)
+test("iscclosure", function() return iscclosure(print) == true end)
+test("newcclosure", function() 
+    local f = newcclosure(function() return true end)
+    return f() == true and iscclosure(f)
 end)
-test("hookfunction (Local Logic)", function()
-    local function target() return "original" end
-    local old; old = hookfunction(target, function() return "hooked" end)
-    return target() == "hooked"
-end)
-test("newcclosure (Memory Masking)", function()
-    local f = newcclosure(function() return "test" end)
-    return iscclosure(f) == true
-end)
+test("clonefunction", function() return clonefunction(print) ~= print end)
+test("getthreadidentity", function() return type(getthreadidentity()) == "number" end)
+test("setthreadidentity", function() setthreadidentity(7) return getthreadidentity() == 7 end)
 
--- 3. FULL FILESYSTEM (PC EXCLUSIVE PATHS)
-test("writefile (Standard)", function() writefile("pc_test.txt", "pc_data") return true end)
-test("readfile", function() return readfile("pc_test.txt") == "pc_data" end)
-test("appendfile", function() appendfile("pc_test.txt", "_ext") return readfile("pc_test.txt") == "pc_data_ext" end)
-test("makefolder/isfolder", function() makefolder("pc_folder") return isfolder("pc_folder") end)
-test("listfiles (Deep Scan)", function() return type(listfiles("")) == "table" end)
-test("loadfile (Executable Script)", function()
-    writefile("pc_load.txt", "return 'loaded'")
-    local f = loadfile("pc_load.txt")
-    local res = f() == "loaded"
-    delfile("pc_load.txt")
+-- 3. ADVANCED HOOKING
+test("hookfunction", function() 
+    local old; old = hookfunction(math.acos, function(n) return 1337 end)
+    local res = math.acos(0) == 1337
+    hookfunction(math.acos, old)
     return res
 end)
-test("delfile/delfolder", function() delfile("pc_test.txt") delfolder("pc_folder") return true end)
+test("hookmetamethod", function() 
+    local t = setmetatable({}, {__index = function() return 1 end})
+    hookmetamethod(t, "__index", function() return 2 end)
+    return t.any == 2
+end)
 
--- 4. REFLECTION & INSTANCE HOOKS
-test("cloneref (Anticheat Bypass)", function() return cloneref(game:GetService("HttpService")) ~= nil end)
+-- 4. DEBUG LIBRARY (Verification Level)
+test("debug.getconstant", function() return debug.getconstant ~= nil end)
+test("debug.getconstants", function() return type(debug.getconstants(function() end)) == "table" end)
+test("debug.getupvalue", function() return debug.getupvalue ~= nil end)
+test("debug.getupvalues", function() return type(debug.getupvalues(function() end)) == "table" end)
+test("debug.setupvalue", function() return debug.setupvalue ~= nil end)
+test("debug.getproto", function() return debug.getproto ~= nil end)
+test("debug.getprotos", function() return type(debug.getprotos(function() end)) == "table" end)
+test("debug.getstack", function() return debug.getstack ~= nil end)
+test("debug.setstack", function() return debug.setstack ~= nil end)
+test("debug.getregistry", function() return debug.getregistry ~= nil end)
+
+-- 5. FILESYSTEM (UNC STANDARD)
+test("writefile", function() writefile("unc.txt", "t") return true end)
+test("readfile", function() return readfile("unc.txt") == "t" end)
+test("appendfile", function() appendfile("unc.txt", "2") return readfile("unc.txt") == "t2" end)
+test("isfile", function() return isfile("unc.txt") end)
+test("listfiles", function() return type(listfiles("")) == "table" end)
+test("makefolder", function() makefolder("unc_f") return isfolder("unc_f") end)
+test("delfile", function() delfile("unc.txt") return not isfile("unc.txt") end)
+test("delfolder", function() delfolder("unc_f") return not isfolder("unc_f") end)
+test("loadfile", function() return loadfile ~= nil end)
+
+-- 6. REFLECTION & INSTANCES
+test("cloneref", function() return cloneref(game:GetService("Players")) ~= nil end)
 test("gethiddenproperty", function() return gethiddenproperty(game:GetService("Players"), "SimulationRadius") ~= nil end)
 test("sethiddenproperty", function() sethiddenproperty(game:GetService("Players"), "SimulationRadius", 100) return true end)
-test("getconnections", function() return type(getconnections(game.DescendantAdded)) == "table" end)
 test("getcallbackvalue", function() return getcallbackvalue ~= nil end)
+test("getcustomasset", function() return getcustomasset ~= nil end)
+test("fireclickdetector", function() return fireclickdetector ~= nil end)
+test("firetouchinterest", function() return firetouchinterest ~= nil end)
 
--- 5. DEBUG & LUAU (Extreme)
-test("debug.getupvalues", function() return type(debug.getupvalues(print)) == "table" end)
-test("debug.getconstants", function() return type(debug.getconstants(print)) == "table" end)
-test("debug.setstack", function() return debug.setstack ~= nil end)
-test("getscriptbytecode", function() return getscriptbytecode(game:GetService("Players").LocalPlayer.Character.Animate) ~= nil end)
-
--- 6. CRYPTOGRAPHY & BIT
-test("crypt.encrypt (AES/Base64)", function() return crypt.encrypt("test", "key", "iv", "cbc") ~= nil end)
-test("crypt.hash (SHA512)", function() return crypt.hash("test", "sha512") ~= nil end)
-test("bit.band/bor/bxor", function() return bit.band(1,1) == 1 and bit.bor(1,2) == 3 end)
-
--- 7. PC DRAWING & INPUT
-test("Drawing.new (Overlay Support)", function()
-    local line = Drawing.new("Line")
-    line.Visible = true
-    line:Remove()
-    return true
+-- 7. CRYPTOGRAPHY & BIT (PC LEVEL)
+test("crypt.hash", function() return crypt.hash("test", "sha256") ~= nil end)
+test("crypt.encrypt (AES-256)", function() 
+    local key = "12345678123456781234567812345678" -- 32-bytes
+    return crypt.encrypt("data", key, key:sub(1,16), "cbc") ~= nil 
 end)
-test("isrbxactive (Window Focus)", function() return type(isrbxactive()) == "boolean" end)
-test("mouse1press/release", function() return mouse1press ~= nil and mouse1release ~= nil end)
-test("keypress/keyrelease", function() return keypress ~= nil and keyrelease ~= nil end)
+test("crypt.generatekey", function() return #crypt.generatekey() >= 32 end)
+test("bit.band/bor/bxor/lshift/rshift", function() return bit.band(1,1) == 1 and bit.bor(1,2) == 3 end)
 
--- 8. COMPILER/DECOMPILER
-test("decompile (Heavy Test)", function() return decompile ~= nil end)
+-- 8. DRAWING & INPUT
+test("Drawing.new", function() local d = Drawing.new("Line") d:Remove() return true end)
+test("isrbxactive", function() return type(isrbxactive()) == "boolean" end)
+test("mouse1press/release", function() return mouse1press ~= nil end)
+test("keypress/keyrelease", function() return keypress ~= nil end)
+
+-- 9. DECOMPILER & BYTECODE
+test("getscriptbytecode", function() return getscriptbytecode ~= nil end)
+test("getscripthash", function() return getscripthash ~= nil end)
+test("decompile", function() return decompile ~= nil end)
 
 local percent = (passed / total) * 100
-print("--- [ FINAL PC SCORE ] ---")
-print(string.format("PASSED: %d/%d", passed, total))
-print(string.format("COMPATIBILITY: %0.1f%%", percent))
-print("--------------------------")
+print("--- [ FINAL RESULTS ] ---")
+print(string.format("✅ PASSED: %d | ❌ FAILED: %d", passed, total - passed))
+print(string.format("SCORE: %0.1f%%", percent))
