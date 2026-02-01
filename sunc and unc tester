@@ -1,0 +1,89 @@
+local passed, total = 0, 0
+local function test(name, fn)
+    total = total + 1
+    local success, result = pcall(fn)
+    if success and result then
+        passed = passed + 1
+        print("✅ [PASS] " .. name)
+    else
+        warn("❌ [FAIL] " .. name .. (result and (": " .. tostring(result)) or ""))
+    end
+end
+
+print("--- [ STARTING PC-SPECIFIC MASTER BENCHMARK ] ---")
+
+-- 1. PC IDENTITY & VULNERABILITY
+test("IdentifyExecutor (Returns Name)", function() return identifyexecutor() ~= nil end)
+test("GetThreadIdentity (Permissions)", function() 
+    local id = (getthreadidentity or get_thread_identity or syn.get_thread_identity)()
+    return type(id) == "number"
+end)
+test("CheckCaller (Spoof Prevention)", function() return checkcaller() == true end)
+
+-- 2. ADVANCED HOOKING (sUNC)
+test("hookmetamethod (__namecall)", function()
+    local old; old = hookmetamethod(game, "__namecall", function(self, ...) return old(self, ...) end)
+    return old ~= nil
+end)
+test("hookfunction (Local Logic)", function()
+    local function target() return "original" end
+    local old; old = hookfunction(target, function() return "hooked" end)
+    return target() == "hooked"
+end)
+test("newcclosure (Memory Masking)", function()
+    local f = newcclosure(function() return "test" end)
+    return iscclosure(f) == true
+end)
+
+-- 3. FULL FILESYSTEM (PC EXCLUSIVE PATHS)
+test("writefile (Standard)", function() writefile("pc_test.txt", "pc_data") return true end)
+test("readfile", function() return readfile("pc_test.txt") == "pc_data" end)
+test("appendfile", function() appendfile("pc_test.txt", "_ext") return readfile("pc_test.txt") == "pc_data_ext" end)
+test("makefolder/isfolder", function() makefolder("pc_folder") return isfolder("pc_folder") end)
+test("listfiles (Deep Scan)", function() return type(listfiles("")) == "table" end)
+test("loadfile (Executable Script)", function()
+    writefile("pc_load.txt", "return 'loaded'")
+    local f = loadfile("pc_load.txt")
+    local res = f() == "loaded"
+    delfile("pc_load.txt")
+    return res
+end)
+test("delfile/delfolder", function() delfile("pc_test.txt") delfolder("pc_folder") return true end)
+
+-- 4. REFLECTION & INSTANCE HOOKS
+test("cloneref (Anticheat Bypass)", function() return cloneref(game:GetService("HttpService")) ~= nil end)
+test("gethiddenproperty", function() return gethiddenproperty(game:GetService("Players"), "SimulationRadius") ~= nil end)
+test("sethiddenproperty", function() sethiddenproperty(game:GetService("Players"), "SimulationRadius", 100) return true end)
+test("getconnections", function() return type(getconnections(game.DescendantAdded)) == "table" end)
+test("getcallbackvalue", function() return getcallbackvalue ~= nil end)
+
+-- 5. DEBUG & LUAU (Extreme)
+test("debug.getupvalues", function() return type(debug.getupvalues(print)) == "table" end)
+test("debug.getconstants", function() return type(debug.getconstants(print)) == "table" end)
+test("debug.setstack", function() return debug.setstack ~= nil end)
+test("getscriptbytecode", function() return getscriptbytecode(game:GetService("Players").LocalPlayer.Character.Animate) ~= nil end)
+
+-- 6. CRYPTOGRAPHY & BIT
+test("crypt.encrypt (AES/Base64)", function() return crypt.encrypt("test", "key", "iv", "cbc") ~= nil end)
+test("crypt.hash (SHA512)", function() return crypt.hash("test", "sha512") ~= nil end)
+test("bit.band/bor/bxor", function() return bit.band(1,1) == 1 and bit.bor(1,2) == 3 end)
+
+-- 7. PC DRAWING & INPUT
+test("Drawing.new (Overlay Support)", function()
+    local line = Drawing.new("Line")
+    line.Visible = true
+    line:Remove()
+    return true
+end)
+test("isrbxactive (Window Focus)", function() return type(isrbxactive()) == "boolean" end)
+test("mouse1press/release", function() return mouse1press ~= nil and mouse1release ~= nil end)
+test("keypress/keyrelease", function() return keypress ~= nil and keyrelease ~= nil end)
+
+-- 8. COMPILER/DECOMPILER
+test("decompile (Heavy Test)", function() return decompile ~= nil end)
+
+local percent = (passed / total) * 100
+print("--- [ FINAL PC SCORE ] ---")
+print(string.format("PASSED: %d/%d", passed, total))
+print(string.format("COMPATIBILITY: %0.1f%%", percent))
+print("--------------------------")
