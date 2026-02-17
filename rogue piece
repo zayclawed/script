@@ -1,92 +1,60 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "ROGUE PIECE | Developer Suite",
-   LoadingTitle = "Loading Game Files...",
-   LoadingSubtitle = "by Gemini",
+   Name = "ROGUE PIECE | Debug Menu",
+   LoadingTitle = "Analyzing Game Files...",
+   LoadingSubtitle = "by Gemini (Dev Suite)",
    ConfigurationSaving = { Enabled = false }
 })
 
--- Variables
+-- Variables for Loops
 local _G = {
-    Farm = false,
-    Magnet = false,
-    SelectedNPC = "None",
-    NPCList = {}
+    AutoFarm = false,
+    AutoStats = false,
+    SelectedStat = "Melee", -- Default
+    SelectedNPC = nil,
+    Distance = 5
 }
 
--- Function to scan game files for NPCs
+-- Functions to fetch data from your game
 local function getNPCs()
-    local list = {}
+    local tbl = {}
     for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v ~= game.Players.LocalPlayer.Character then
-            if not table.find(list, v.Name) then
-                table.insert(list, v.Name)
-            end
+        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Name ~= game.Players.LocalPlayer.Name then
+            if not table.find(tbl, v.Name) then table.insert(tbl, v.Name) end
         end
     end
-    return list
+    return tbl
 end
 
-local MainTab = Window:CreateTab("Combat & Farm", 4483362458) -- Tab Icon
+local MainTab = Window:CreateTab("Main Farm", 4483362458)
 
--- 1. DROPDOWN: Target Selection
-local NPCDropdown = MainTab:CreateDropdown({
-   Name = "Select Target NPC",
+MainTab:CreateDropdown({
+   Name = "Select Mob to Farm",
    Options = getNPCs(),
    CurrentOption = {"None"},
-   MultipleOptions = false,
    Callback = function(Option)
       _G.SelectedNPC = Option[1]
    end,
 })
 
--- Refresh Button (In case new NPCs spawn)
-MainTab:CreateButton({
-   Name = "Refresh NPC List",
-   Callback = function()
-       NPCDropdown:Refresh(getNPCs())
-   end,
-})
-
--- 2. TOGGLE: Auto Farm
 MainTab:CreateToggle({
-   Name = "Auto Farm (Teleport)",
+   Name = "Auto Farm Target",
    CurrentValue = false,
    Callback = function(Value)
-      _G.Farm = Value
+      _G.AutoFarm = Value
       task.spawn(function()
-          while _G.Farm do
+          while _G.AutoFarm do
               pcall(function()
                   local char = game.Players.LocalPlayer.Character
                   for _, v in pairs(workspace:GetDescendants()) do
                       if v.Name == _G.SelectedNPC and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                          char.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4)
+                          -- Teleporting to NPC
+                          char.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 0, _G.Distance)
+                          
+                          -- Auto Click/Attack
                           local tool = char:FindFirstChildOfClass("Tool")
                           if tool then tool:Activate() end
-                      end
-                  end
-              end)
-              task.wait(0.1)
-          end
-      end)
-   end,
-})
-
--- 3. TOGGLE: Mob Magnet
-MainTab:CreateToggle({
-   Name = "Mob Magnet (Sticky)",
-   CurrentValue = false,
-   Callback = function(Value)
-      _G.Magnet = Value
-      task.spawn(function()
-          while _G.Magnet do
-              pcall(function()
-                  local root = game.Players.LocalPlayer.Character.HumanoidRootPart
-                  for _, v in pairs(workspace:GetDescendants()) do
-                      if v.Name == _G.SelectedNPC and v:FindFirstChild("HumanoidRootPart") then
-                          v.HumanoidRootPart.CFrame = root.CFrame * CFrame.new(0, 0, -5)
-                          v.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
                       end
                   end
               end)
@@ -96,30 +64,51 @@ MainTab:CreateToggle({
    end,
 })
 
-local VisualsTab = Window:CreateTab("Visuals & World", 4483362458)
+local StatsTab = Window:CreateTab("Auto Stats", 4483362458)
 
--- 4. BUTTON: NPC ESP
-VisualsTab:CreateButton({
-   Name = "Enable NPC Highlight (ESP)",
-   Callback = function()
-       for _, v in pairs(workspace:GetDescendants()) do
-           if v:IsA("Model") and v:FindFirstChild("Humanoid") and v ~= game.Players.LocalPlayer.Character then
-               local h = Instance.new("Highlight", v)
-               h.FillColor = Color3.fromRGB(255, 0, 0)
-           end
-       end
+StatsTab:CreateDropdown({
+   Name = "Select Stat",
+   Options = {"Melee", "Defense", "Sword", "Devil Fruit"},
+   CurrentOption = {"Melee"},
+   Callback = function(Option)
+      _G.SelectedStat = Option[1]
    end,
 })
 
--- 5. BUTTON: Find Quest NPCs
-VisualsTab:CreateButton({
-   Name = "Mark Quest NPCs",
+StatsTab:CreateToggle({
+   Name = "Auto-Add Points",
+   CurrentValue = false,
+   Callback = function(Value)
+      _G.AutoStats = Value
+      task.spawn(function()
+          while _G.AutoStats do
+              -- This looks for a RemoteEvent typically named 'AddStat' or 'StatUpdate'
+              -- You will need to find the exact name in your ReplicatedStorage
+              local remote = game:GetService("ReplicatedStorage"):FindFirstChild("StatRemote", true) 
+              if remote then
+                  remote:InvokeServer(_G.SelectedStat, 1) -- Spends 1 point
+              end
+              task.wait(0.5)
+          end
+      end)
+   end,
+})
+
+local MiscTab = Window:CreateTab("Misc", 4483362458)
+
+MiscTab:CreateSlider({
+   Name = "Farm Distance",
+   Range = {1, 15},
+   Increment = 1,
+   CurrentValue = 5,
+   Callback = function(Value)
+      _G.Distance = Value
+   end,
+})
+
+MiscTab:CreateButton({
+   Name = "Destroy UI",
    Callback = function()
-       for _, v in pairs(workspace:GetDescendants()) do
-           if v:IsA("Model") and (v.Name:find("Quest") or v.Name:find("Giver")) then
-               local h = Instance.new("Highlight", v)
-               h.FillColor = Color3.fromRGB(0, 255, 255)
-           end
-       end
+       Rayfield:Destroy()
    end,
 })
